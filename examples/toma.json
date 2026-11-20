@@ -1,0 +1,28 @@
+{
+  "client_toma_id": "c4fa88bd-5cb7-4f91-b75b-37fe85d8c3c2",
+  "terreno_id": 1,
+  "fecha_inicio": "2026-11-19T09:00:00-05:00",
+  "fecha_fin": "2026-11-19T10:30:00-05:00",
+  "numero_toma_semana": 1,
+  "modelo_ia": "QuinuAlert-Mildiu",
+  "version_modelo": "1.0.0",
+  "surcos": [
+    {
+      "numero_surco": 1,
+      "codigo_surco": "SURCO-01",
+      "latitud_inicio": -12.1001,
+      "longitud_inicio": -76.9501,
+      "latitud_fin": -12.1007,
+      "longitud_fin": -76.9503,
+      "resultados": {
+        "total_imagenes": 3,
+        "imagenes_procesadas": 3,
+        "imagenes_con_mildiu": 1,
+        "imagenes_sin_mildiu": 1,
+        "imagenes_posible_mildiu": 1,
+        "imagenes_no_procesadas": 0
+      }
+    }
+  ]
+}
+

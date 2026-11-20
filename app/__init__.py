@@ -1,0 +1,2 @@
+"""QuinuAlert backend package."""
+
