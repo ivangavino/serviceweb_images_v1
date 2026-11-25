@@ -50,6 +50,25 @@ def test_valid_take_and_stable_hash():
     assert take.content_hash() == take.content_hash()
 
 
+def test_accepts_multiple_furrows_in_one_take():
+    furrow = valid_take()["surcos"][0]
+    take = TomaCreate.model_validate(
+        valid_take(
+            surcos=[
+                furrow,
+                furrow
+                | {
+                    "numero_surco": 2,
+                    "codigo_surco": "SURCO-02",
+                    "latitud_inicio": -12.1008,
+                    "latitud_fin": -12.1014,
+                },
+            ]
+        )
+    )
+    assert [item.numero_surco for item in take.surcos] == [1, 2]
+
+
 @pytest.mark.parametrize(
     "changes",
     [

@@ -75,6 +75,20 @@ def register_take(settings: Settings, principal: Principal, payload: TomaCreate)
             )
             if not authorized:
                 raise ApiError(403, "terrain_forbidden", "El prototipo no está autorizado para este terreno")
+            occupied_number = session.scalar(
+                select(func.count()).select_from(TomaMildiu).where(
+                    TomaMildiu.terreno_id == payload.terreno_id,
+                    TomaMildiu.anio_iso == iso.year,
+                    TomaMildiu.semana_iso == iso.week,
+                    TomaMildiu.numero_toma_semana == payload.numero_toma_semana,
+                )
+            )
+            if occupied_number:
+                raise ApiError(
+                    409,
+                    "weekly_take_number_conflict",
+                    "El número de toma semanal ya existe; envíe todos los surcos de la visita en una sola toma",
+                )
             weekly_count = session.scalar(
                 select(func.count()).select_from(TomaMildiu).where(
                     TomaMildiu.terreno_id == payload.terreno_id,

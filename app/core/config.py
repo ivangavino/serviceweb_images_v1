@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     crop_timezone: str = "America/Lima"
     max_tomas_por_semana: int = Field(default=2, ge=1, le=20)
     min_surcos_por_toma: int = Field(default=1, ge=1, le=20)
-    max_surcos_por_toma: int = Field(default=5, ge=1, le=20)
+    max_surcos_por_toma: int = Field(default=20, ge=1, le=20)
     min_longitud_surco_metros: float = Field(default=30, gt=0, le=10000)
     max_longitud_surco_metros: float = Field(default=100, gt=0, le=10000)
 

@@ -111,7 +111,7 @@ Para multipart hay que firmar el cuerpo terminado, incluida la frontera. El clie
 
 ## Endpoints
 
-- `POST /api/v1/mildiu/tomas`: registra de 1 a 5 surcos, resultados y geometrías. Devuelve `201`; un replay idéntico devuelve `200`. Un mismo `client_toma_id` con otro contenido devuelve `409`.
+- `POST /api/v1/mildiu/tomas`: registra de 1 a 20 surcos de una misma visita, con sus resultados y geometrías. Devuelve `201`; un replay idéntico devuelve `200`. Un mismo `client_toma_id` con otro contenido devuelve `409`.
 - `POST /api/v1/mildiu/tomas/{toma_id}/surcos/{surco_id}/imagenes`: multipart con `metadata` JSON y una parte por `campo_archivo`. Permite lotes reanudables e idempotentes.
 - `POST /api/v1/mildiu/tomas/{toma_id}/finalizar`: cuerpo vacío. Exige todas las imágenes procesadas y ninguna pendiente.
 - `GET /api/v1/mildiu/tomas/{toma_id}`: detalle, coordenadas, resultados, totales e imágenes por categoría.
@@ -165,6 +165,15 @@ $env:QUINUALERT_BASE_URL = 'https://api.ejemplo.pe'
 ```
 
 Guarde el `client_lote_id` mostrado y páselo con `--lote-id` para reintentar exactamente el mismo conjunto. El cliente valida certificados TLS y no ofrece una opción para desactivarlos.
+
+### Prueba completa con imágenes por surco
+
+`examples/enviar_prueba_completa.py` lee la lista `imagenes` de cada elemento de `surcos` en `examples/toma_prueba_manual.json`. `archivo` es una ruta relativa a `--image-dir` y `categoria` admite `con_mildiu`, `sin_mildiu` o `posible_mildiu`. El script calcula los contadores de resultados de cada surco, registra una sola toma y carga cada conjunto en su surco correspondiente.
+
+```powershell
+.\.venv\Scripts\python.exe .\examples\enviar_prueba_completa.py --dry-run
+.\.venv\Scripts\python.exe .\examples\enviar_prueba_completa.py
+```
 
 ## Pruebas
 

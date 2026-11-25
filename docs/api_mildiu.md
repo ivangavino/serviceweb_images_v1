@@ -4,7 +4,7 @@ Todas las solicitudes se firman como explica el README. Ninguna respuesta expone
 
 ## Registrar toma
 
-`POST /api/v1/mildiu/tomas`, `Content-Type: application/json`. El ejemplo está en `examples/toma.json`. La fecha debe incluir offset; el calendario ISO se calcula en `CROP_TIMEZONE`. El servidor valida terreno activo y autorizado, cantidad de surcos, coordenadas, longitud PostGIS, resultados y límite semanal.
+`POST /api/v1/mildiu/tomas`, `Content-Type: application/json`. Una toma representa una visita al campo y contiene todos los surcos recorridos durante ella (hasta 20 con la configuración predeterminada). El ejemplo está en `examples/toma.json`. La fecha debe incluir offset; el calendario ISO se calcula en `CROP_TIMEZONE`. El servidor valida terreno activo y autorizado, cantidad de surcos, coordenadas, longitud PostGIS, resultados y límite semanal.
 
 Respuesta `201`:
 
@@ -66,7 +66,7 @@ Categorías: `con_mildiu`, `sin_mildiu`, `posible_mildiu`. `hash_sha256` y `fech
 - Archivo: `pendiente`, `disponible`, `fallido`.
 - `401 authentication_failed`: hash, firma, timestamp o metadatos HMAC inválidos.
 - `403 device_disabled`, `credential_inactive`, `terrain_forbidden`, `take_forbidden`.
-- `409 nonce_reused`, `idempotency_conflict`, `weekly_limit_reached`, `image_count_mismatch`.
+- `409 nonce_reused`, `idempotency_conflict`, `weekly_take_number_conflict`, `weekly_limit_reached`, `image_count_mismatch`.
 - `413 request_too_large`, `image_too_large`, `upload_too_large`, `too_many_files`.
 - `415 unsupported_media_type`, `unsupported_image_format`.
 - `422 invalid_take`, `invalid_metadata`, `invalid_image`, `invalid_furrow_length`.

@@ -1,24 +1,54 @@
 {
   "client_toma_id": "4e539f17-4038-4145-b11f-6241b87ac02d",
   "terreno_id": 1,
-  "fecha_inicio": "2026-11-23T10:30:00-05:00",
-  "fecha_fin": "2026-11-23T12:00:00-05:00",
+  "fecha_inicio": "2026-11-25T11:00:00-05:00",
+  "fecha_fin": "2026-11-25T11:35:00-05:00",
   "numero_toma_semana": 2,
   "modelo_ia": "QuinuAlert-Mildiu",
   "version_modelo": "1.0.0",
   "surcos": [
     {
+      "numero_surco": 1,
+      "codigo_surco": "SURCO-01",
+      "latitud_inicio": -12.1007,
+      "longitud_inicio": -76.9509,
+      "latitud_fin": -12.1007,
+      "longitud_fin": -76.9512,
+      "imagenes": [
+        {"categoria": "con_mildiu", "archivo": "fotos_surco_01/mildiu_01.jpg"},
+        {"categoria": "con_mildiu", "archivo": "fotos_surco_01/mildiu_02.jpg"},
+        {"categoria": "sin_mildiu", "archivo": "fotos_surco_01/sana_01.jpg"},
+        {"categoria": "sin_mildiu", "archivo": "fotos_surco_01/sana_02.jpg"},
+        {"categoria": "posible_mildiu", "archivo": "fotos_surco_01/posible_01.jpg"}
+      ],
+      "resultados": {
+        "total_imagenes": 5,
+        "imagenes_procesadas": 5,
+        "imagenes_con_mildiu": 2,
+        "imagenes_sin_mildiu": 2,
+        "imagenes_posible_mildiu": 1,
+        "imagenes_no_procesadas": 0
+      }
+    },
+    {
       "numero_surco": 2,
       "codigo_surco": "SURCO-02",
-      "latitud_inicio": -12.1000,
-      "longitud_inicio": -76.9500,
-      "latitud_fin": -12.1000,
-      "longitud_fin": -76.9503,
+      "latitud_inicio": -12.1010,
+      "longitud_inicio": -76.9513,
+      "latitud_fin": -12.1010,
+      "longitud_fin": -76.9516,
+      "imagenes": [
+        {"categoria": "con_mildiu", "archivo": "fotos_surco_02/mildiu_01.jpg"},
+        {"categoria": "con_mildiu", "archivo": "fotos_surco_02/mildiu_02.jpg"},
+        {"categoria": "sin_mildiu", "archivo": "fotos_surco_02/sana_01.jpg"},
+        {"categoria": "sin_mildiu", "archivo": "fotos_surco_02/sana_02.jpg"},
+        {"categoria": "posible_mildiu", "archivo": "fotos_surco_02/posible_01.jpg"}
+      ],
       "resultados": {
-        "total_imagenes": 7,
-        "imagenes_procesadas": 7,
-        "imagenes_con_mildiu": 3,
-        "imagenes_sin_mildiu": 3,
+        "total_imagenes": 5,
+        "imagenes_procesadas": 5,
+        "imagenes_con_mildiu": 2,
+        "imagenes_sin_mildiu": 2,
         "imagenes_posible_mildiu": 1,
         "imagenes_no_procesadas": 0
       }

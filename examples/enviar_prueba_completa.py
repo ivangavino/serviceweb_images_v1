@@ -1,8 +1,9 @@
 """Ejecuta de principio a fin una prueba del servicio web de mildiu.
 
 El script usa ``toma_prueba_manual.json`` como plantilla, genera todos los UUID
-del cliente, carga las imagenes configuradas, finaliza la toma y consulta el
-resultado. El secreto HMAC se obtiene exclusivamente de variables de entorno.
+del cliente, carga las imagenes configuradas en cada surco, finaliza la toma y
+consulta el resultado. El secreto HMAC se obtiene exclusivamente de variables
+de entorno.
 """
 
 from __future__ import annotations
@@ -30,18 +31,8 @@ from scripts.raspberry_client import SignedClient
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_PAYLOAD = SCRIPT_DIR / "toma_prueba_manual.json"
 VALID_CATEGORIES = {"con_mildiu", "sin_mildiu", "posible_mildiu"}
-
-# Nombres usados por la prueba manual. Para usar otra carpeta, ejecute con
-# --image-dir o defina QUINUALERT_IMAGE_DIR. Tambien puede editar esta lista.
-DEFAULT_IMAGE_FILES = (
-    ("con_mildiu", "mildiu_01.jpg"),
-    ("con_mildiu", "mildiu_02.jpg"),
-    ("con_mildiu", "mildiu_03.jpg"),
-    ("sin_mildiu", "sana_01.jpg"),
-    ("sin_mildiu", "sana_02.jpg"),
-    ("sin_mildiu", "sana_03.jpg"),
-    ("posible_mildiu", "posible_01.jpg"),
-)
+ImageFile = tuple[str, Path]
+ImagesByFurrow = dict[str, list[ImageFile]]
 
 
 class WorkflowError(RuntimeError):
@@ -64,7 +55,7 @@ def parser() -> argparse.ArgumentParser:
         default=Path(
             os.getenv("QUINUALERT_IMAGE_DIR", str(Path.home() / "Documents"))
         ),
-        help="Carpeta que contiene las siete imagenes configuradas.",
+        help="Carpeta que contiene las imagenes configuradas.",
     )
     result.add_argument(
         "--numero-toma-semana",
@@ -81,58 +72,107 @@ def parser() -> argparse.ArgumentParser:
     return result
 
 
-def resolve_images(image_dir: Path) -> list[tuple[str, Path]]:
-    resolved: list[tuple[str, Path]] = []
+def resolve_images(
+    image_dir: Path,
+    configured: object,
+    furrow_code: str,
+) -> list[ImageFile]:
+    base_dir = image_dir.expanduser().resolve()
+    if not base_dir.is_dir():
+        raise WorkflowError(f"La carpeta de imagenes no existe: {base_dir}")
+    if not isinstance(configured, list) or not configured:
+        raise WorkflowError(
+            f"{furrow_code}: configure al menos una imagen en 'imagenes'"
+        )
+
+    resolved: list[ImageFile] = []
     errors: list[str] = []
+    seen_paths: set[Path] = set()
     total_bytes = 0
-    for category, filename in DEFAULT_IMAGE_FILES:
+    for index, item in enumerate(configured, start=1):
+        if not isinstance(item, dict):
+            errors.append(f"{furrow_code}: imagen {index} debe ser un objeto")
+            continue
+        category = item.get("categoria")
+        filename = item.get("archivo")
         if category not in VALID_CATEGORIES:
-            errors.append(f"Categoria no permitida: {category}")
+            errors.append(
+                f"{furrow_code}: categoria no permitida en imagen {index}: {category}"
+            )
             continue
-        path = (image_dir / filename).expanduser().resolve()
+        if not isinstance(filename, str) or not filename.strip():
+            errors.append(f"{furrow_code}: falta 'archivo' en imagen {index}")
+            continue
+        relative_path = Path(filename)
+        if relative_path.is_absolute():
+            errors.append(f"{furrow_code}: use una ruta relativa: {filename}")
+            continue
+        path = (base_dir / relative_path).resolve()
+        if base_dir not in path.parents:
+            errors.append(
+                f"{furrow_code}: la imagen esta fuera de --image-dir: {filename}"
+            )
+            continue
         if not path.is_file():
-            errors.append(f"No existe: {path}")
+            errors.append(f"{furrow_code}: no existe: {path}")
             continue
+        if path in seen_paths:
+            errors.append(f"{furrow_code}: imagen repetida: {filename}")
+            continue
+        seen_paths.add(path)
         size = path.stat().st_size
         if size <= 0:
-            errors.append(f"El archivo esta vacio: {path}")
+            errors.append(f"{furrow_code}: el archivo esta vacio: {path}")
             continue
         total_bytes += size
         resolved.append((category, path))
     if errors:
         raise WorkflowError("\n".join(errors))
     if total_bytes > 50 * 1024 * 1024:
-        raise WorkflowError("Las imagenes superan el limite total de 50 MB")
+        raise WorkflowError(
+            f"{furrow_code}: las imagenes superan el limite total de 50 MB"
+        )
     return resolved
 
 
 def build_payload(
     path: Path,
-    images: list[tuple[str, Path]],
+    image_dir: Path,
     weekly_number: int | None,
-) -> tuple[bytes, TomaCreate]:
+) -> tuple[bytes, TomaCreate, ImagesByFurrow]:
     try:
         raw: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise WorkflowError(f"No se pudo leer la plantilla {path}: {exc}") from exc
 
     surcos = raw.get("surcos")
-    if not isinstance(surcos, list) or len(surcos) != 1:
-        raise WorkflowError("La prueba automatica requiere exactamente un surco")
+    if not isinstance(surcos, list) or not surcos:
+        raise WorkflowError("La prueba automatica requiere al menos un surco")
 
-    counts = Counter(category for category, _path in images)
-    processed = len(images)
     raw["client_toma_id"] = str(uuid.uuid4())
     if weekly_number is not None:
         raw["numero_toma_semana"] = weekly_number
-    surcos[0]["resultados"] = {
-        "total_imagenes": processed,
-        "imagenes_procesadas": processed,
-        "imagenes_con_mildiu": counts["con_mildiu"],
-        "imagenes_sin_mildiu": counts["sin_mildiu"],
-        "imagenes_posible_mildiu": counts["posible_mildiu"],
-        "imagenes_no_procesadas": 0,
-    }
+    furrow_image_sets: list[list[ImageFile]] = []
+    for index, surco in enumerate(surcos, start=1):
+        if not isinstance(surco, dict):
+            raise WorkflowError("Cada elemento de surcos debe ser un objeto")
+        furrow_code = str(surco.get("codigo_surco") or f"surco {index}")
+        images = resolve_images(
+            image_dir,
+            surco.pop("imagenes", None),
+            furrow_code,
+        )
+        furrow_image_sets.append(images)
+        counts = Counter(category for category, _path in images)
+        processed = len(images)
+        surco["resultados"] = {
+            "total_imagenes": processed,
+            "imagenes_procesadas": processed,
+            "imagenes_con_mildiu": counts["con_mildiu"],
+            "imagenes_sin_mildiu": counts["sin_mildiu"],
+            "imagenes_posible_mildiu": counts["posible_mildiu"],
+            "imagenes_no_procesadas": 0,
+        }
 
     try:
         payload = TomaCreate.model_validate(raw)
@@ -143,7 +183,11 @@ def build_payload(
         separators=(",", ":"),
         ensure_ascii=False,
     ).encode("utf-8")
-    return body, payload
+    images_by_furrow = {
+        furrow.codigo_surco: images
+        for furrow, images in zip(payload.surcos, furrow_image_sets, strict=True)
+    }
+    return body, payload, images_by_furrow
 
 
 def show_response(label: str, response: httpx.Response) -> dict[str, Any]:
@@ -171,6 +215,7 @@ def upload_images(
     client: SignedClient,
     toma_id: str,
     surco_id: str,
+    codigo_surco: str,
     images: list[tuple[str, Path]],
 ) -> dict[str, Any]:
     batch_id = uuid.uuid4()
@@ -206,7 +251,7 @@ def upload_images(
             data={"metadata": metadata},
             files=files,
         )
-        return show_response("CARGA DE IMAGENES", response)
+        return show_response(f"CARGA DE IMAGENES - {codigo_surco}", response)
     finally:
         for handle in handles:
             handle.close()
@@ -228,19 +273,25 @@ def required_environment() -> tuple[str, str, str, str]:
 
 
 def run(args: argparse.Namespace) -> None:
-    images = resolve_images(args.image_dir)
-    body, payload = build_payload(args.payload, images, args.numero_toma_semana)
-    counts = Counter(category for category, _path in images)
+    body, payload, images_by_furrow = build_payload(
+        args.payload,
+        args.image_dir,
+        args.numero_toma_semana,
+    )
     print("Configuracion validada")
     print(f"  client_toma_id: {payload.client_toma_id}")
     print(f"  numero_toma_semana: {payload.numero_toma_semana}")
+    print(f"  surcos: {len(payload.surcos)}")
     print(f"  carpeta de imagenes: {args.image_dir.resolve()}")
-    print(
-        "  imagenes: "
-        f"{counts['con_mildiu']} con_mildiu, "
-        f"{counts['sin_mildiu']} sin_mildiu, "
-        f"{counts['posible_mildiu']} posible_mildiu"
-    )
+    for furrow in payload.surcos:
+        images = images_by_furrow[furrow.codigo_surco]
+        counts = Counter(category for category, _path in images)
+        print(
+            f"  {furrow.codigo_surco}: {len(images)} imagenes ("
+            f"{counts['con_mildiu']} con_mildiu, "
+            f"{counts['sin_mildiu']} sin_mildiu, "
+            f"{counts['posible_mildiu']} posible_mildiu)"
+        )
     if args.dry_run:
         print("DRY RUN: no se enviaron solicitudes")
         return
@@ -271,11 +322,21 @@ def run(args: argparse.Namespace) -> None:
         )
         toma_id = str(registration["toma_id"])
         surcos = registration.get("surcos")
-        if not isinstance(surcos, list) or len(surcos) != 1:
-            raise WorkflowError("El registro no devolvio exactamente un surco")
-        surco_id = str(surcos[0]["surco_id"])
+        if not isinstance(surcos, list) or len(surcos) != len(payload.surcos):
+            raise WorkflowError("El registro no devolvio todos los surcos enviados")
 
-        upload_images(client, toma_id, surco_id, images)
+        surco_ids: list[str] = []
+        for surco in surcos:
+            surco_id = str(surco["surco_id"])
+            codigo_surco = str(surco["codigo_surco"])
+            surco_ids.append(surco_id)
+            upload_images(
+                client,
+                toma_id,
+                surco_id,
+                codigo_surco,
+                images_by_furrow[codigo_surco],
+            )
         show_response(
             "ESTADO",
             client.send(
@@ -294,7 +355,8 @@ def run(args: argparse.Namespace) -> None:
         )
         print("\nPRUEBA COMPLETADA")
         print(f"  toma_id: {toma_id}")
-        print(f"  surco_id: {surco_id}")
+        print(f"  surcos procesados: {len(surco_ids)}")
+        print(f"  surco_ids: {', '.join(surco_ids)}")
         print(f"  estado: {detail.get('estado')}")
     finally:
         client.client.close()
